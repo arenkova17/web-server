@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 from fastapi.responses import HTMLResponse
-from database import get_all_klients, get_contract_id, update_contract
+from database import get_clients_page, get_total_count, get_contract_id, update_contract
 from fastapi import HTTPException
 from fastapi import Form
 
@@ -10,8 +10,12 @@ app = FastAPI()
 
 
 @app.get("/", response_class=HTMLResponse)
-def home():
-    contracts = get_all_klients()  # получаем данные из database и присваиваем результат переменной
+def home(page: int = 1, page_size: int = 4000):  # ← добавил параметры
+    contracts = get_clients_page(page, page_size)  # ← изменил вызов
+    total_count = get_total_count()  # ← получаем общее количество
+
+    # Рассчитываем сколько всего страниц
+    total_pages = (total_count + page_size - 1) // page_size
     # добавляем заголовок и название вкладки
     html = """  
     <html>
@@ -29,6 +33,21 @@ def home():
         background-color: #f5f5f5; /* цвет при наведении */
         cursor: pointer;           /* курсор в виде руки */
     }
+        .pagination {
+        margin: 20px 0;
+        text-align: center;
+    }  
+    .pagination a {
+        display: inline-block;
+        padding: 5px 10px;
+        margin: 0 2px;
+        border: 1px solid #ddd;
+        text-decoration: none;
+    }
+    .pagination a.active {
+        background: #032c57;
+        color: white;
+    }
     </style></head>
     <body>
         <h1 class="h1">Список договоров подлежащих публикации в ЕИС</h1>
@@ -40,25 +59,38 @@ def home():
             html += f"<th style='padding: 10px; border: 1px solid;'>{key}</th>"  # оформление текста заголовков столбцов
         html += "</tr>"
         for contract in contracts:  # проход по строчкам договоров
-            contract_id = contract['id']  # присваиваем id переменной
-            html += f"<tr onclick='showContract({contract_id})'>"  # делаем строчку кликабельной
+            contract_id = contract['ID договора']  # присваиваем id переменной
+            html += f"<tr onclick='showContract({contract_id}, {page})'>"  # делаем строчку кликабельной
             for value in contract.values():  # проход по значениям одной строчки договора + оформление
                 html += f"<td style='padding: 5px; border: 1px solid #ddd;'>{value}</td>"
             html += "</tr>"
-    html += """</table>
+    html += f"""</table>
     <script>
-        function showContract(id) {
-        window.location.href = '/contract/' + id;
-    }
+        function showContract(id, page) {{
+            // Передаю текущую страницу в URL
+            window.location.href = '/contract/' + id + '?from_page=' + page;
+        }}
     </script>
+
+    <div class="pagination">
+    """
+
+    # Создаю кнопки страниц
+    for i in range(1, total_pages + 1):
+        active_class = "active" if i == page else ""
+        html += f'<a href="/?page={i}&page_size={page_size}" class="{active_class}">{i}</a>'
+
+    html += """
+    </div>
     </body>
-    </html> """
+    </html>
+    """
     return html
 
 
 # функция для показа информации клиента
 @app.get("/contract/{contract_id}", response_class=HTMLResponse)
-def contract_page(contract_id: int):
+def contract_page(contract_id: int, from_page: int = 1):
     # присваивание результата функции в переменную
     contract = get_contract_id(contract_id)
     if not contract:
@@ -98,7 +130,7 @@ def contract_page(contract_id: int):
         <p><strong>Предмет договора:</strong> {contract.get('Предмет договора', 'Нет данных')}</p>
 
         <p style="position: fixed; bottom: 20px; left: 20px;">
-        <a href="/" class="button-back"> Назад к списку</a>
+        <a href="/?page={from_page}" class="button-back"> Назад к списку</a>
         </p>
         <p style="position:fixed; bottom: 20px; right: 20px">
         <a href="/contract/{contract_id}/update" class="button-edit"> Изменить </a>
