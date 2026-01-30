@@ -50,4 +50,23 @@ def get_contract_id(contract_id: int, ):
         print(f'Error: {e}')
         return None
 
+#функция обновления данных в базе
+def update_contract(contract_id: int, dn: str, summa: float, predmet: str):
+    try:
+        connection = pyodbc.connect(connection_string)
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            UPDATE dog 
+            SET dn = ?, summa = ?, predmet = ?
+            WHERE id = ?
+        """, dn, summa, predmet, contract_id)
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return True
+    except Exception as e:
+        print(f'Update error: {e}')
+        return False
 
