@@ -5,12 +5,14 @@ from database import get_all_klients, get_contract_id, update_contract
 from fastapi import HTTPException
 from fastapi import Form
 
-#главная страница с таблицей
+# главная страница с таблицей
 app = FastAPI()
+
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     contracts = get_all_klients()  # получаем данные из database и присваиваем результат переменной
-    #добавляем заголовок и название вкладки
+    # добавляем заголовок и название вкладки
     html = """  
     <html>
     <head><title>Договора в ЕИС</title>
@@ -32,15 +34,15 @@ def home():
         <h1 class="h1">Список договоров подлежащих публикации в ЕИС</h1>
         <table border="1" style="border-collapse: collapse; width: 100%;">
     """
-    if contracts:  #если список получен
-        html += "<tr style = 'background-color: #f2f2f2'>" #1 строка - заголовки. цвет - серый
-        for key in contracts[0].keys():  #цикл прохода по первой строчке таблицы - заголовкам
-            html += f"<th style='padding: 10px; border: 1px solid;'>{key}</th>" #оформление текста заголовков столбцов
+    if contracts:  # если список получен
+        html += "<tr style = 'background-color: #f2f2f2'>"  # 1 строка - заголовки. цвет - серый
+        for key in contracts[0].keys():  # цикл прохода по первой строчке таблицы - заголовкам
+            html += f"<th style='padding: 10px; border: 1px solid;'>{key}</th>"  # оформление текста заголовков столбцов
         html += "</tr>"
-        for contract in contracts:   #проход по строчкам договоров
-            contract_id = contract['id']   #присваиваем id переменной
-            html += f"<tr onclick='showContract({contract_id})'>"  #делаем строчку кликабельной
-            for value in contract.values():  #проход по значениям одной строчки договора + оформление
+        for contract in contracts:  # проход по строчкам договоров
+            contract_id = contract['id']  # присваиваем id переменной
+            html += f"<tr onclick='showContract({contract_id})'>"  # делаем строчку кликабельной
+            for value in contract.values():  # проход по значениям одной строчки договора + оформление
                 html += f"<td style='padding: 5px; border: 1px solid #ddd;'>{value}</td>"
             html += "</tr>"
     html += """</table>
@@ -53,14 +55,15 @@ def home():
     </html> """
     return html
 
-#функция для показа информации клиента
+
+# функция для показа информации клиента
 @app.get("/contract/{contract_id}", response_class=HTMLResponse)
 def contract_page(contract_id: int):
-    #присваивание результата функции в переменную
+    # присваивание результата функции в переменную
     contract = get_contract_id(contract_id)
     if not contract:
         return "<h1>Договор не найден</h1>"
-    #оформление страницы договора
+    # оформление страницы договора
     html = f"""
     <html>
     <head><title>Договор {contract_id}</title>
@@ -93,27 +96,29 @@ def contract_page(contract_id: int):
         <p><strong>Дата договора:</strong> {contract.get('Дата начала', 'Нет данных')}</p>    
         <p><strong>Сумма договора:</strong> {contract.get('Сумма договора', 'Нет данных')} рублей</p>
         <p><strong>Предмет договора:</strong> {contract.get('Предмет договора', 'Нет данных')}</p>
-        
+
         <p style="position: fixed; bottom: 20px; left: 20px;">
         <a href="/" class="button-back"> Назад к списку</a>
         </p>
         <p style="position:fixed; bottom: 20px; right: 20px">
         <a href="/contract/{contract_id}/update" class="button-edit"> Изменить </a>
         </p>
-        
-        
+
+
     </body>
     </html>
     """
     return html
 
-#функуция которая заполняет значения в изменении ( окно редактирования )
+
+# функуция которая заполняет значения в изменении ( окно редактирования )
 @app.get("/contract/{contract_id}/update", response_class=HTMLResponse)
 def edit_contract_page(contract_id: int):
     contract = get_contract_id(contract_id)
     if not contract:
         return "<h1>Договор не найден</h1>"
-
+    raw_date = str(contract.get('Дата начала', ''))  # точно в строку
+    formatted_date = raw_date[:10] if raw_date else ''
     html = f"""
     <html>
     <head><title>Изменение данных</title>
@@ -145,7 +150,7 @@ def edit_contract_page(contract_id: int):
     <h1 class="h1">Изменение данных договора {contract_id}</h1>
     <form action="/api/contract/{contract_id}/update" method="POST">
         <label>Дата договора:</label>
-            <input type="date" name="dn" value="{contract.get('Дата начала', '')}"><br><br>
+            <input type="date" name="dn" value="{formatted_date}"><br><br>
         <label>Сумма договора:</label>
             <input type="number" name="summa" value="{contract.get('Сумма договора', 0)}"><br><br>
         <label>Предмет договора:</label>
@@ -155,13 +160,14 @@ def edit_contract_page(contract_id: int):
     </form>
     <p style="position: fixed; bottom: 20px; left: 20px;">
     <a href="/contract/{contract_id}" class="button-back">Назад к просмотру</a></p>
-    
+
     </body>
     </html>
     """
     return html
 
-#функция обновления данных в базе
+
+# функция обновления данных в базе
 @app.post("/api/contract/{contract_id}/update")
 def update_contract_api(
         contract_id: int,
@@ -181,6 +187,6 @@ def update_contract_api(
     else:
         raise HTTPException(500, "Ошибка при обновлении")
 
+
 if __name__ == '__main__':
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
-
