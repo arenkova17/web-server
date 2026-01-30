@@ -5,26 +5,44 @@ server = 'gazprosql'
 database = 'tmp_dog'
 connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};Trusted_Connection=yes'
 
-#функция взятия столбцов из таблицы
-def get_all_klients():
+def get_clients_page(page: int = 1, page_size: int = 4000):
+    """
+    Получает одну страницу договоров
+    page: номер страницы (начинается с 1)
+    page_size: сколько строк на странице
+    """
     try:
-        #подключение к базе
         connection = pyodbc.connect(connection_string)
         cursor = connection.cursor()
-        cursor.execute("select top 100 id, dn as 'Дата начала', summa as 'Сумма договора', predmet as 'Предмет договора' from dog")
-        # Преобразуем в словари
-        columns = [column[0] for column in cursor.description]   #извлекает заголовки столбцов
-        result = []   #создаем список для хранения данных
-        #проход по каждой строчке таблицы, запись в result в формате {'ID договора': 57, 'Дата начала': '2023-01-01', ...}
-        for row in cursor.fetchall():  #fetchall - вся таблица, fetchone - первая запись
+
+        # Рассчитываем offset
+        offset = (page - 1) * page_size
+
+        cursor.execute(f"""
+            SELECT 
+                id as 'ID договора', 
+                dn as 'Дата начала', 
+                summa as 'Сумма договора', 
+                predmet as 'Предмет договора'
+            FROM dog 
+            ORDER BY id
+            OFFSET {offset} ROWS 
+            FETCH NEXT {page_size} ROWS ONLY
+        """)
+
+        columns = [column[0] for column in cursor.description]
+        result = []
+
+        for row in cursor.fetchall():
             row_dict = dict(zip(columns, row))
             result.append(row_dict)
-        #закрытие соединения
+
         cursor.close()
         connection.close()
         return result
+
     except Exception as e:
-        print(f'Error: {e}')
+        print(f'Error in get_clients_page: {e}')
         return []
 
 #функция для добычи одного договора по id, нужна для окошка с инфой клиента
@@ -33,7 +51,7 @@ def get_contract_id(contract_id: int, ):
         #подключение к базе
         connection = pyodbc.connect(connection_string)
         cursor = connection.cursor()
-        cursor.execute("select id, dn as 'Дата начала', summa as 'Сумма договора', predmet as 'Предмет договора' from dog where id = ?", contract_id) #ищем договор по id
+        cursor.execute("select id as 'ID договора', dn as 'Дата начала', summa as 'Сумма договора', predmet as 'Предмет договора' from dog where id = ?", contract_id) #ищем договор по id
         #получение названия колонок
         columns = [column[0] for column in cursor.description]
         #получение строки
@@ -70,3 +88,23 @@ def update_contract(contract_id: int, dn: str, summa: float, predmet: str):
         print(f'Update error: {e}')
         return False
 
+
+
+
+
+def get_total_count():
+    """Возвращает общее количество договоров в таблице"""
+    try:
+        connection = pyodbc.connect(connection_string)
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM dog")
+        count = cursor.fetchone()[0]
+
+        cursor.close()
+        connection.close()
+        return count
+
+    except Exception as e:
+        print(f'Error in get_total_count: {e}')
+        return 0
