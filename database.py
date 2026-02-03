@@ -5,43 +5,40 @@ server = 'gazprosql'
 database = 'tmp_dog'
 connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};Trusted_Connection=yes'
 
+#функция вывода таблицы почастично ( первые 4000 клиентов. вторые 4000 клиентов и тд)
 def get_clients_page(page: int = 1, page_size: int = 4000):
-    """
-    Получает одну страницу договоров
-    page: номер страницы (начинается с 1)
-    page_size: сколько строк на странице
-    """
     try:
-        connection = pyodbc.connect(connection_string)
-        cursor = connection.cursor()
+        connection = pyodbc.connect(connection_string) #подключение к серверу через pyodbc
+        cursor = connection.cursor()   #курсор для выполнения sql запросов
 
-        # Рассчитываем offset
-        offset = (page - 1) * page_size
+        # Рассчитываем offset (колво строк которые будем пропускать)
+        offset = (page - 1) * page_size   #(1-1)*4000=0 (1 стр. пропускаем 0 строк), (2-1)*4000=4000 (2стр. пропукаем 4000 строк) и тд
 
         cursor.execute(f"""
             SELECT 
                 id as 'ID договора', 
+                n4 as '№ контрагента',
                 dn as 'Дата начала', 
                 summa as 'Сумма договора', 
                 predmet as 'Предмет договора'
             FROM dog 
             ORDER BY id
-            OFFSET {offset} ROWS 
-            FETCH NEXT {page_size} ROWS ONLY
+            OFFSET {offset} ROWS    --пропуск первых offset строк
+            FETCH NEXT {page_size} ROWS ONLY   --показ следующих после offset 4000 строк
         """)
 
-        columns = [column[0] for column in cursor.description]
-        result = []
+        columns = [column[0] for column in cursor.description]   #получение названия заголовков
+        result = []   #создание списка
 
-        for row in cursor.fetchall():
-            row_dict = dict(zip(columns, row))
-            result.append(row_dict)
+        for row in cursor.fetchall():    #fetchall - берет все строки. fetchone - получение первой строки
+            row_dict = dict(zip(columns, row))    #zip(columns, row) получает сначала строку с заголовками, потом строку с его значением и соединяет их, а dict преобразует каждую такую строку в словарь типа  {'ID договора': 8001, '№ контрагента': '123', 'Дата начала': '2023-01-01', ...},
+            result.append(row_dict)    #заносит результат в список
 
         cursor.close()
-        connection.close()
-        return result
+        connection.close()   #закрывается соединение
+        return result    #возвращается результат
 
-    except Exception as e:
+    except Exception as e:      #вывод ошибки и пустого списка в случае краха
         print(f'Error in get_clients_page: {e}')
         return []
 
@@ -51,12 +48,18 @@ def get_contract_id(contract_id: int, ):
         #подключение к базе
         connection = pyodbc.connect(connection_string)
         cursor = connection.cursor()
-        cursor.execute("select id as 'ID договора', dn as 'Дата начала', summa as 'Сумма договора', predmet as 'Предмет договора' from dog where id = ?", contract_id) #ищем договор по id
-        #получение названия колонок
+        cursor.execute(
+            "select id as 'ID договора', "
+            "n4 as '№ контрагента', "
+            "dn as 'Дата начала', "
+            "summa as 'Сумма договора', "
+            "predmet as 'Предмет договора', "
+            "dr as 'Дата регистрации'"
+            "from dog where id = ?", contract_id) #ищем договор по id, на который щелкаем
+
         columns = [column[0] for column in cursor.description]
-        #получение строки
-        row = cursor.fetchone()
-        #закрытие соединения
+        row = cursor.fetchone()   #получение строки
+
         cursor.close()
         connection.close()
         #если строка получена, возвращаем её в виде {'id': 57, 'Дата начала': '2023-01-01', ...}
@@ -69,37 +72,35 @@ def get_contract_id(contract_id: int, ):
         return None
 
 #функция обновления данных в базе
-def update_contract(contract_id: int, dn: str, summa: float, predmet: str):
+def update_contract(contract_id: int, n4: str, dn: str, summa: float, predmet: str, dr: str):     #передача параметров для обновления
     try:
         connection = pyodbc.connect(connection_string)
         cursor = connection.cursor()
 
-        cursor.execute("""
+        cursor.execute("""     --получение значений для обновления и обновление
             UPDATE dog 
-            SET dn = ?, summa = ?, predmet = ?
+            SET n4 = ?, dn = ?, summa = ?, predmet = ?, dr = ?
             WHERE id = ?
-        """, dn, summa, predmet, contract_id)
+        """, n4, dn, summa, predmet, contract_id, dr)
 
-        connection.commit()
+        connection.commit()    #команда сохранения результатом
         cursor.close()
         connection.close()
         return True
+
     except Exception as e:
         print(f'Update error: {e}')
         return False
 
-
-
-
-
+#возвращение всех всех клиентов (нужно для просчета количества выводимых клиентов)
 def get_total_count():
     """Возвращает общее количество договоров в таблице"""
     try:
         connection = pyodbc.connect(connection_string)
         cursor = connection.cursor()
 
-        cursor.execute("SELECT COUNT(*) FROM dog")
-        count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM dog")   #подсчет количества строк в таблице
+        count = cursor.fetchone()[0]   #выводит первой строк - цифры количества строк
 
         cursor.close()
         connection.close()
