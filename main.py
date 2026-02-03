@@ -8,18 +8,17 @@ from fastapi import Form
 # главная страница с таблицей
 app = FastAPI()
 
-
+#функция главного экрана с пагинацией
 @app.get("/", response_class=HTMLResponse)
-def home(page: int = 1, page_size: int = 4000):  # ← добавил параметры
-    contracts = get_clients_page(page, page_size)  # ← изменил вызов
-    total_count = get_total_count()  # ← получаем общее количество
+def home(page: int = 1, page_size: int = 4000):
+    contracts = get_clients_page(page, page_size)    #занесение списка из строк которые будем выводить
+    total_count = get_total_count()   #занесение общего числа строк
 
-    # Рассчитываем сколько всего страниц
+    #расссчитывает сколько всего должно быть страниц на всё количество с округлением вверх
     total_pages = (total_count + page_size - 1) // page_size
-    # добавляем заголовок и название вкладки
     html = """  
     <html>
-    <head><title>Договора в ЕИС</title>
+    <head><title>Договора в ЕИС</title>  
     <style>
     .h1 {
         background: #e4f0fb; /* Цвет фона под заголовком */
@@ -33,18 +32,18 @@ def home(page: int = 1, page_size: int = 4000):  # ← добавил парам
         background-color: #f5f5f5; /* цвет при наведении */
         cursor: pointer;           /* курсор в виде руки */
     }
-        .pagination {
+        .pagination {      /* стиль для одной иконки страницы */
         margin: 20px 0;
         text-align: center;
     }  
-    .pagination a {
+    .pagination a {        /* стиль для всех иконок страниц */
         display: inline-block;
         padding: 5px 10px;
         margin: 0 2px;
         border: 1px solid #ddd;
         text-decoration: none;
     }
-    .pagination a.active {
+    .pagination a.active {     /* стиль для активной страницы, которая нажата */
         background: #032c57;
         color: white;
     }
@@ -64,21 +63,19 @@ def home(page: int = 1, page_size: int = 4000):  # ← добавил парам
             for value in contract.values():  # проход по значениям одной строчки договора + оформление
                 html += f"<td style='padding: 5px; border: 1px solid #ddd;'>{value}</td>"
             html += "</tr>"
-    html += f"""</table>
-    <script>
-        function showContract(id, page) {{
-            // Передаю текущую страницу в URL
-            window.location.href = '/contract/' + id + '?from_page=' + page;
-        }}
+    html += f"""</table>   
+    <script>         /* функция для перехода на страницу договора */
+        function showContract(id, page) {{        /* передача номера договора и номер страницы */
+            window.location.href = '/contract/' + id + '?from_page=' + page;        /* меняет url на адрес с договором и перенаправляет на страницу */
+        }} 
     </script>
 
     <div class="pagination">
     """
 
-    # Создаю кнопки страниц
-    for i in range(1, total_pages + 1):
-        active_class = "active" if i == page else ""
-        html += f'<a href="/?page={i}&page_size={page_size}" class="{active_class}">{i}</a>'
+    for i in range(1, total_pages + 1):     #рассчитывает сколько кнопок пагинации надо создать. если total_pages = 4, то кнопок 4
+        active_class = "active" if i == page else ""    #определяет активную кнопку. если i равняется номеру открытой страницы, то применяется к ней стиль active_class
+        html += f'<a href="/?page={i}&page_size={page_size}" class="{active_class}">{i}</a>'  #создание самой кнопки страницы
 
     html += """
     </div>
@@ -86,7 +83,6 @@ def home(page: int = 1, page_size: int = 4000):  # ← добавил парам
     </html>
     """
     return html
-
 
 # функция для показа информации клиента
 @app.get("/contract/{contract_id}", response_class=HTMLResponse)
@@ -125,10 +121,12 @@ def contract_page(contract_id: int, from_page: int = 1):
     </head>
     <body>
         <h1 class="h1">Информация по договору {contract_id}</h1>
+        <p><strong>№ контрагента:</strong> {contract.get('№ контрагента', 'Нет данных')}</p>
         <p><strong>Дата договора:</strong> {contract.get('Дата начала', 'Нет данных')}</p>    
         <p><strong>Сумма договора:</strong> {contract.get('Сумма договора', 'Нет данных')} рублей</p>
         <p><strong>Предмет договора:</strong> {contract.get('Предмет договора', 'Нет данных')}</p>
-
+        <p><strong>Дата регистрации:</strong> {contract.get('Дата регистрации', 'Нет данных')}</p> 
+        
         <p style="position: fixed; bottom: 20px; left: 20px;">
         <a href="/?page={from_page}" class="button-back"> Назад к списку</a>
         </p>
@@ -151,6 +149,10 @@ def edit_contract_page(contract_id: int):
         return "<h1>Договор не найден</h1>"
     raw_date = str(contract.get('Дата начала', ''))  # точно в строку
     formatted_date = raw_date[:10] if raw_date else ''
+
+    raw_date_dr = str(contract.get('Дата регистрации', ''))  # точно в строку
+    formatted_date_dr = raw_date[:10] if raw_date else ''
+
     html = f"""
     <html>
     <head><title>Изменение данных</title>
@@ -181,15 +183,20 @@ def edit_contract_page(contract_id: int):
     <body>
     <h1 class="h1">Изменение данных договора {contract_id}</h1>
     <form action="/api/contract/{contract_id}/update" method="POST">
-        <label>Дата договора:</label>
+        <label><strong>№ контрагента:</strong></label>
+            <input type="text" name="n4" value="{contract.get('№ контрагента', 0)}"><br><br>
+        <label><strong>Дата договора:</strong></label>
             <input type="date" name="dn" value="{formatted_date}"><br><br>
-        <label>Сумма договора:</label>
+        <label><strong>Сумма договора:</strong></label>
             <input type="number" name="summa" value="{contract.get('Сумма договора', 0)}"><br><br>
-        <label>Предмет договора:</label>
+        <label><strong>Предмет договора:</strong></label>
             <input type="text" name="predmet" value="{contract.get('Предмет договора', '')}"><br><br>
+        <label><strong>Дата регистрации:</strong></label>
+            <input type="date" name="dr" value="{formatted_date_dr}"><br><br>
         <p style="position: fixed; bottom: 20px; right: 20px;">
         <a href="#" onclick="this.closest('form').submit(); return false;" class="button-edit">Сохранить</a>
     </form>
+    
     <p style="position: fixed; bottom: 20px; left: 20px;">
     <a href="/contract/{contract_id}" class="button-back">Назад к просмотру</a></p>
 
@@ -203,10 +210,12 @@ def edit_contract_page(contract_id: int):
 @app.post("/api/contract/{contract_id}/update")
 def update_contract_api(
         contract_id: int,
+        n4: str = Form(...),
         dn: str = Form(...),
         summa: float = Form(...),
-        predmet: str = Form(...)):
-    success = update_contract(contract_id, dn, summa, predmet)
+        predmet: str = Form(...),
+        dr: str = Form(...)):
+    success = update_contract(contract_id, n4, dn, summa, predmet, dr)
 
     if success:
         # Возвращаем обратно на страницу договора
