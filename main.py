@@ -8,13 +8,14 @@ from fastapi import Form
 # главная страница с таблицей
 app = FastAPI()
 
-#функция главного экрана с пагинацией
+
+# функция главного экрана с пагинацией
 @app.get("/", response_class=HTMLResponse)
 def home(page: int = 1, page_size: int = 4000):
-    contracts = get_clients_page(page, page_size)    #занесение списка из строк которые будем выводить
-    total_count = get_total_count()   #занесение общего числа строк
+    contracts = get_clients_page(page, page_size)  # занесение списка из строк которые будем выводить
+    total_count = get_total_count()  # занесение общего числа строк
 
-    #расссчитывает сколько всего должно быть страниц на всё количество с округлением вверх
+    # расссчитывает сколько всего должно быть страниц на всё количество с округлением вверх
     total_pages = (total_count + page_size - 1) // page_size
     html = """  
     <html>
@@ -73,9 +74,10 @@ def home(page: int = 1, page_size: int = 4000):
     <div class="pagination">
     """
 
-    for i in range(1, total_pages + 1):     #рассчитывает сколько кнопок пагинации надо создать. если total_pages = 4, то кнопок 4
-        active_class = "active" if i == page else ""    #определяет активную кнопку. если i равняется номеру открытой страницы, то применяется к ней стиль active_class
-        html += f'<a href="/?page={i}&page_size={page_size}" class="{active_class}">{i}</a>'  #создание самой кнопки страницы
+    for i in range(1,
+                   total_pages + 1):  # рассчитывает сколько кнопок пагинации надо создать. если total_pages = 4, то кнопок 4
+        active_class = "active" if i == page else ""  # определяет активную кнопку. если i равняется номеру открытой страницы, то применяется к ней стиль active_class
+        html += f'<a href="/?page={i}&page_size={page_size}" class="{active_class}">{i}</a>'  # создание самой кнопки страницы
 
     html += """
     </div>
@@ -83,6 +85,7 @@ def home(page: int = 1, page_size: int = 4000):
     </html>
     """
     return html
+
 
 # функция для показа информации клиента
 @app.get("/contract/{contract_id}", response_class=HTMLResponse)
@@ -121,12 +124,16 @@ def contract_page(contract_id: int, from_page: int = 1):
     </head>
     <body>
         <h1 class="h1">Информация по договору {contract_id}</h1>
+        <p><strong>№ договора:</strong> {contract.get('№ договора', 'Нет данных')}</p>
         <p><strong>№ контрагента:</strong> {contract.get('№ контрагента', 'Нет данных')}</p>
-        <p><strong>Дата договора:</strong> {contract.get('Дата начала', 'Нет данных')}</p>    
-        <p><strong>Сумма договора:</strong> {contract.get('Сумма договора', 'Нет данных')} рублей</p>
+        <p><strong>Дата регистрации:</strong> {contract.get('Дата регистрации', 'Нет данных')}</p>
+        <p><strong>Дата договора:</strong> {contract.get('Дата договора', 'Нет данных')}</p>
+        <p><strong>Подразделение:</strong> {contract.get('Подразделение', 'Нет данных')}</p>
         <p><strong>Предмет договора:</strong> {contract.get('Предмет договора', 'Нет данных')}</p>
-        <p><strong>Дата регистрации:</strong> {contract.get('Дата регистрации', 'Нет данных')}</p> 
-        
+        <p><strong>Дата договора:</strong> {contract.get('Дата начала', 'Нет данных')}</p>   
+        <p><strong>Дата конца:</strong> {contract.get('Дата конца', 'Нет данных')}</p> 
+        <p><strong>Сумма договора:</strong> {contract.get('Сумма договора', 'Нет данных')} рублей</p>
+
         <p style="position: fixed; bottom: 20px; left: 20px;">
         <a href="/?page={from_page}" class="button-back"> Назад к списку</a>
         </p>
@@ -196,7 +203,7 @@ def edit_contract_page(contract_id: int):
         <p style="position: fixed; bottom: 20px; right: 20px;">
         <a href="#" onclick="this.closest('form').submit(); return false;" class="button-edit">Сохранить</a>
     </form>
-    
+
     <p style="position: fixed; bottom: 20px; left: 20px;">
     <a href="/contract/{contract_id}" class="button-back">Назад к просмотру</a></p>
 
