@@ -16,15 +16,17 @@ def get_clients_page(page: int = 1, page_size: int = 4000):
 
         cursor.execute(f"""
             SELECT 
-                id as 'ID договора', 
-                n4 as '№ контрагента',
-                dn as 'Дата начала', 
-                summa as 'Сумма договора', 
-                predmet as 'Предмет договора'
+                dog.id as 'ID договора', 
+                dbo.dog_fGetNum(dog.id) as 'Номер договора',
+                dog.n4 as '№ контрагента',
+                dog.dd as 'Дата договора',
+                klint.name as 'Контрагент', 
+                dog.predmet as 'Предмет договора'
             FROM dog 
-            ORDER BY id
-            OFFSET {offset} ROWS    --пропуск первых offset строк
-            FETCH NEXT {page_size} ROWS ONLY   --показ следующих после offset 4000 строк
+            left join klint on dog.klient = klint.id
+            ORDER BY dog.id
+            OFFSET {offset} ROWS
+            FETCH NEXT {page_size} ROWS ONLY
         """)
 
         columns = [column[0] for column in cursor.description]   #получение названия заголовков
@@ -43,19 +45,27 @@ def get_clients_page(page: int = 1, page_size: int = 4000):
         return []
 
 #функция для добычи одного договора по id, нужна для окошка с инфой клиента
-def get_contract_id(contract_id: int, ):
+def get_contract_id(contract_id: int):
     try:
         #подключение к базе
         connection = pyodbc.connect(connection_string)
         cursor = connection.cursor()
-        cursor.execute(
-            "select id as 'ID договора', "
-            "n4 as '№ контрагента', "
-            "dn as 'Дата начала', "
-            "summa as 'Сумма договора', "
-            "predmet as 'Предмет договора', "
-            "dr as 'Дата регистрации'"
-            "from dog where id = ?", contract_id) #ищем договор по id, на который щелкаем
+        cursor.execute("""
+            select 
+                dog.id as 'ID договора',
+                dbo.dog_fGetNum(dog.id) as '№ договора',
+                n4 as '№ контрагента',
+                dn as 'Дата начала',
+                summa as 'Сумма договора',
+                predmet as 'Предмет договора',
+                dr as 'Дата регистрации',
+                dd as 'Дата договора',
+                podr as 'Подразделение',
+                dk as 'Дата конца'
+            from dog 
+            left join klint on dog.klient = klint.id
+            where dog.id = ?
+        """, contract_id)
 
         columns = [column[0] for column in cursor.description]
         row = cursor.fetchone()   #получение строки
